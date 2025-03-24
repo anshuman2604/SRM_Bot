@@ -1,0 +1,11 @@
+{
+  "expo": {
+    "scheme": "acme",
+    "plugins": [
+      "expo-router"
+    ],
+    "name": "college-ai-assistant",
+    "slug": "college-ai-assistant",
+    "newArchEnabled": true
+  }
+}
