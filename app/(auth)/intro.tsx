@@ -1,83 +1,14 @@
-import React, { useEffect, useRef } from 'react';
-import { StyleSheet, View, Animated, Dimensions, TouchableOpacity } from 'react-native';
+import React from 'react';
+import { StyleSheet, View, Dimensions, TouchableOpacity } from 'react-native';
 import { Text, Button } from 'react-native-paper';
 import { router } from 'expo-router';
 import { COLORS } from '../../constants/Config';
 import { FontAwesome5 } from '@expo/vector-icons';
+import FuturisticDots from '../../components/FuturisticDots';
 
 const IntroScreen = () => {
-  // Animation values
-  const fadeAnim = useRef(new Animated.Value(0)).current;
-  const scaleAnim = useRef(new Animated.Value(0.9)).current;
-  const rotateAnim = useRef(new Animated.Value(0)).current;
-  const iconAnimations = Array(8).fill(0).map(() => ({
-    position: useRef(new Animated.Value(0)).current,
-    scale: useRef(new Animated.Value(0)).current,
-    opacity: useRef(new Animated.Value(0)).current,
-  }));
-
-  useEffect(() => {
-    // Main animations
-    Animated.parallel([
-      Animated.timing(fadeAnim, {
-        toValue: 1,
-        duration: 1000,
-        useNativeDriver: true,
-      }),
-      Animated.spring(scaleAnim, {
-        toValue: 1,
-        friction: 8,
-        tension: 40,
-        useNativeDriver: true,
-      }),
-      Animated.loop(
-        Animated.timing(rotateAnim, {
-          toValue: 1,
-          duration: 20000,
-          useNativeDriver: true,
-        })
-      ),
-    ]).start();
-
-    // Staggered icon animations
-    iconAnimations.forEach((anim, index) => {
-      setTimeout(() => {
-        Animated.parallel([
-          Animated.spring(anim.scale, {
-            toValue: 1,
-            friction: 6,
-            tension: 40,
-            useNativeDriver: true,
-          }),
-          Animated.timing(anim.opacity, {
-            toValue: 1,
-            duration: 500,
-            useNativeDriver: true,
-          }),
-          Animated.loop(
-            Animated.sequence([
-              Animated.timing(anim.position, {
-                toValue: 1,
-                duration: 3000 + Math.random() * 2000,
-                useNativeDriver: true,
-              }),
-              Animated.timing(anim.position, {
-                toValue: 0,
-                duration: 3000 + Math.random() * 2000,
-                useNativeDriver: true,
-              }),
-            ])
-          ),
-        ]).start();
-      }, 150 * index);
-    });
-  }, []);
-
-  const rotate = rotateAnim.interpolate({
-    inputRange: [0, 1],
-    outputRange: ['0deg', '360deg'],
-  });
-
+  // Animation references removed to avoid errors
+  
   const navigateToLogin = () => {
     router.replace('/login');
   };
@@ -99,34 +30,17 @@ const IntroScreen = () => {
       {/* Background gradient effect */}
       <View style={styles.gradientBackground} />
       
-      {/* Animated orbital icons */}
+      {/* Orbital icons - using static View instead of Animated.View */}
       <View style={styles.orbitalContainer}>
-        <Animated.View
-          style={[
-            styles.orbitalRing,
-            {
-              transform: [
-                { rotate },
-                { scale: scaleAnim },
-              ],
-              opacity: fadeAnim,
-            },
-          ]}
-        >
+        <View style={styles.orbitalRing}>
           {icons.map((icon, index) => {
             const angle = (icon.position * Math.PI) / 180;
             const radius = 130;
             const translateX = Math.cos(angle) * radius;
             const translateY = Math.sin(angle) * radius;
             
-            const iconAnim = iconAnimations[index];
-            const iconPosition = iconAnim.position.interpolate({
-              inputRange: [0, 1],
-              outputRange: [0, 10],
-            });
-            
             return (
-              <Animated.View
+              <View
                 key={index}
                 style={[
                   styles.orbitalIcon,
@@ -135,61 +49,49 @@ const IntroScreen = () => {
                     transform: [
                       { translateX },
                       { translateY },
-                      { scale: iconAnim.scale },
-                      { translateY: iconPosition },
                     ],
-                    opacity: iconAnim.opacity,
                   },
                 ]}
               >
                 <FontAwesome5 name={icon.name} size={24} color="#FFF" solid />
-              </Animated.View>
+              </View>
             );
           })}
-        </Animated.View>
+        </View>
         
         {/* Center icon */}
-        <Animated.View
-          style={[
-            styles.centerIcon,
-            {
-              transform: [{ scale: scaleAnim }],
-              opacity: fadeAnim,
-            },
-          ]}
-        >
-          <View style={styles.starIcon}>
-            <FontAwesome5 name="star" size={32} color="#FFF" solid />
-          </View>
-        </Animated.View>
+        <View style={styles.centerIcon}>
+          <FuturisticDots 
+            size={70}
+            primaryColor={COLORS.primary}
+            backgroundColor="transparent"
+            active={true}
+          />
+        </View>
       </View>
       
       {/* Content */}
-      <Animated.View
-        style={[
-          styles.content,
-          {
-            opacity: fadeAnim,
-            transform: [{ translateY: fadeAnim.interpolate({
-              inputRange: [0, 1],
-              outputRange: [20, 0],
-            })}],
-          },
-        ]}
-      >
-        <Text style={styles.appName}>College AI</Text>
-        <Text style={styles.title}>Delightful Events</Text>
-        <Text style={styles.subtitle}>Start Here</Text>
+      <View style={styles.content}>
+        <Text style={styles.title}>College AI Assistant</Text>
+        <Text style={styles.subtitle}>Your campus companion</Text>
         
-        <Button
-          mode="contained"
+        <View style={styles.features}>
+          <Text style={styles.featureText}>• Campus events and activities</Text>
+          <Text style={styles.featureText}>• Academic resources and schedules</Text>
+          <Text style={styles.featureText}>• Campus navigation and maps</Text>
+          <Text style={styles.featureText}>• Student services information</Text>
+        </View>
+        
+        <Button 
+          mode="contained" 
           onPress={navigateToLogin}
           style={styles.button}
           contentStyle={styles.buttonContent}
+          labelStyle={styles.buttonLabel}
         >
           Get Started
         </Button>
-      </Animated.View>
+      </View>
     </View>
   );
 };
@@ -199,9 +101,9 @@ const { width, height } = Dimensions.get('window');
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: COLORS.background,
-    alignItems: 'center',
+    backgroundColor: '#121212',
     justifyContent: 'center',
+    alignItems: 'center',
   },
   gradientBackground: {
     position: 'absolute',
@@ -209,90 +111,91 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     bottom: 0,
-    backgroundColor: COLORS.background,
-    opacity: 0.8,
+    backgroundColor: '#121212',
+    opacity: 0.9,
   },
   orbitalContainer: {
-    width: width,
-    height: width,
-    alignItems: 'center',
-    justifyContent: 'center',
     position: 'absolute',
-    top: height * 0.2,
+    width: width,
+    height: height,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   orbitalRing: {
     width: 260,
     height: 260,
     borderRadius: 130,
-    alignItems: 'center',
     justifyContent: 'center',
-    position: 'absolute',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.1)',
   },
   orbitalIcon: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    alignItems: 'center',
-    justifyContent: 'center',
     position: 'absolute',
-    elevation: 5,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.3,
-    shadowRadius: 3,
-  },
-  centerIcon: {
-    width: 60,
-    height: 60,
-    borderRadius: 30,
-    alignItems: 'center',
+    width: 50,
+    height: 50,
+    borderRadius: 25,
     justifyContent: 'center',
-    backgroundColor: COLORS.primary,
-    elevation: 8,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
+    alignItems: 'center',
+    shadowColor: '#fff',
+    shadowOffset: { width: 0, height: 0 },
     shadowOpacity: 0.3,
     shadowRadius: 5,
+    elevation: 5,
   },
-  starIcon: {
-    width: 60,
-    height: 60,
-    borderRadius: 30,
-    alignItems: 'center',
-    justifyContent: 'center',
+  centerIcon: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
     backgroundColor: COLORS.primary,
-    transform: [{ rotate: '45deg' }],
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: COLORS.primary,
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.5,
+    shadowRadius: 20,
+    elevation: 10,
   },
   content: {
+    width: '80%',
     alignItems: 'center',
-    position: 'absolute',
-    bottom: height * 0.15,
-    width: width * 0.8,
-  },
-  appName: {
-    fontSize: 16,
-    color: COLORS.textSecondary,
-    marginBottom: 8,
+    marginTop: height * 0.45,
   },
   title: {
-    fontSize: 32,
+    fontSize: 28,
     fontWeight: 'bold',
-    color: COLORS.text,
+    color: '#fff',
     marginBottom: 8,
+    textAlign: 'center',
   },
   subtitle: {
-    fontSize: 24,
-    color: COLORS.primary,
-    marginBottom: 40,
+    fontSize: 18,
+    color: 'rgba(255,255,255,0.7)',
+    marginBottom: 24,
+    textAlign: 'center',
+  },
+  features: {
+    marginBottom: 32,
+    width: '100%',
+  },
+  featureText: {
+    fontSize: 16,
+    color: 'rgba(255,255,255,0.8)',
+    marginBottom: 8,
+    textAlign: 'left',
   },
   button: {
-    width: width * 0.8,
-    borderRadius: 30,
+    width: '100%',
+    borderRadius: 12,
     backgroundColor: COLORS.primary,
-    marginTop: 20,
+    marginBottom: 16,
   },
   buttonContent: {
-    paddingVertical: 8,
+    height: 56,
+  },
+  buttonLabel: {
+    fontSize: 18,
+    fontWeight: 'bold',
   },
 });
 

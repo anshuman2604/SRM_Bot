@@ -4,6 +4,7 @@ import { Text, TextInput, Button, HelperText, Snackbar } from 'react-native-pape
 import { router } from 'expo-router';
 import { COLORS } from '../../constants/Config';
 import { signIn, signUp } from '../../services/auth';
+import FuturisticPulse from '../../components/FuturisticPulse';
 
 // Login Screen Component
 const LoginScreen = () => {
@@ -16,6 +17,7 @@ const LoginScreen = () => {
   const [error, setError] = useState('');
   const [snackbarVisible, setSnackbarVisible] = useState(false);
   const [snackbarMessage, setSnackbarMessage] = useState('');
+  const [isEyeClosed, setIsEyeClosed] = useState(false);
 
   const validateForm = () => {
     // Reset error
@@ -121,9 +123,12 @@ const LoginScreen = () => {
       >
         <View style={styles.content}>
           <View style={styles.logoContainer}>
-            <View style={styles.logoCircle}>
-              <View style={styles.logoShape} />
-            </View>
+            <FuturisticPulse 
+              size={100}
+              primaryColor={COLORS.primary}
+              secondaryColor="#1a1a1a"
+              active={!isEyeClosed}
+            />
           </View>
           
           <Text style={styles.title}>Log in or sign up</Text>
@@ -172,6 +177,8 @@ const LoginScreen = () => {
               outlineColor={COLORS.border}
               activeOutlineColor={COLORS.primary}
               theme={{ colors: { background: COLORS.card } }}
+              onFocus={() => setIsEyeClosed(true)}
+              onBlur={() => setIsEyeClosed(false)}
               right={
                 <TextInput.Icon 
                   icon="eye" 
@@ -192,6 +199,8 @@ const LoginScreen = () => {
                 outlineColor={COLORS.border}
                 activeOutlineColor={COLORS.primary}
                 theme={{ colors: { background: COLORS.card } }}
+                onFocus={() => setIsEyeClosed(true)}
+                onBlur={() => setIsEyeClosed(false)}
               />
             )}
           </View>
@@ -242,22 +251,6 @@ const styles = StyleSheet.create({
   logoContainer: {
     alignItems: 'center',
     marginBottom: 40,
-  },
-  logoCircle: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    backgroundColor: '#000',
-    justifyContent: 'center',
-    alignItems: 'center',
-    overflow: 'hidden',
-  },
-  logoShape: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: COLORS.primary,
-    transform: [{ translateX: 10 }, { translateY: -5 }],
   },
   title: {
     fontSize: 28,

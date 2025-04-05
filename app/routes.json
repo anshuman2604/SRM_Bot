@@ -1,0 +1,31 @@
+{
+  "routes": {
+    "/": {
+      "screen": "/(app)"
+    },
+    "/(app)": {
+      "initialRouteName": "index"
+    },
+    "/(app)/index": {
+      "screen": "/(app)/chat"
+    },
+    "/(app)/chat": {
+      "screen": "/(app)/chat"
+    },
+    "/(auth)": {
+      "initialRouteName": "intro"
+    },
+    "/(auth)/intro": {
+      "screen": "/(auth)/intro"
+    },
+    "/(auth)/login": {
+      "screen": "/(auth)/login"
+    },
+    "/(auth)/register": {
+      "screen": "/(auth)/register"
+    },
+    "/*": {
+      "screen": "/(app)/chat"
+    }
+  }
+}

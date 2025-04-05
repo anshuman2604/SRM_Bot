@@ -19,7 +19,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { sendMessageToAI } from '../../services/ai';
 import { LinearGradient } from 'expo-linear-gradient';
 import { FontAwesome5 } from '@expo/vector-icons';
-import Building3D from '../../components/Building3D';
+import TypingAnimation from '../../components/TypingAnimation';
 
 interface ChatMessage {
   id?: string;
@@ -27,6 +27,7 @@ interface ChatMessage {
   message: string;
   response: string;
   created_at: string;
+  isTyping?: boolean;
 }
 
 const { width, height } = Dimensions.get('window');
@@ -38,6 +39,10 @@ export default function ChatScreen() {
   const [isLoading, setIsLoading] = useState(false);
   const scrollViewRef = useRef<ScrollView>(null);
   const inputRef = useRef<TextInput>(null);
+  const [typingText, setTypingText] = useState('');
+  const [currentTypingIndex, setCurrentTypingIndex] = useState(-1);
+  const typingSpeed = 5; // Much faster typing speed (milliseconds per character)
+  const typingChunkSize = 3; // Type multiple characters at once for faster effect
 
   // Animation values for floating icons
   const floatingIcons = [
@@ -93,12 +98,27 @@ export default function ChatScreen() {
     loadChatHistory();
   }, [user]);
 
+  // Scroll to bottom whenever chat history changes
+  useEffect(() => {
+    if (chatHistory.length > 0) {
+      setTimeout(() => {
+        scrollToBottom();
+      }, 100);
+    }
+  }, [chatHistory]);
+
+  // Scroll to bottom when keyboard shows/hides
   useEffect(() => {
     const keyboardDidShowListener = Keyboard.addListener('keyboardDidShow', () => {
-      scrollViewRef.current?.scrollToEnd({ animated: true });
+      setTimeout(() => {
+        scrollToBottom();
+      }, 300);
     });
+    
     const keyboardDidHideListener = Keyboard.addListener('keyboardDidHide', () => {
-      scrollViewRef.current?.scrollToEnd({ animated: true });
+      setTimeout(() => {
+        scrollToBottom();
+      }, 100);
     });
 
     return () => {
@@ -107,21 +127,59 @@ export default function ChatScreen() {
     };
   }, []);
 
-  const loadChatHistory = async () => {
-    try {
-      // Check if user exists and has an ID
-      if (!user?.id) {
-        console.log('No user ID found, skipping chat history load');
-        return;
-      }
+  const scrollToBottom = () => {
+    if (scrollViewRef.current) {
+      scrollViewRef.current.scrollToEnd({ animated: false });
+    }
+  };
 
+  // Typing animation effect
+  useEffect(() => {
+    if (currentTypingIndex >= 0 && currentTypingIndex < chatHistory.length) {
+      const currentMessage = chatHistory[currentTypingIndex];
+      if (currentMessage.isTyping && typingText.length < currentMessage.response.length) {
+        const timeout = setTimeout(() => {
+          // Type multiple characters at once for a faster effect
+          const nextChunkSize = Math.min(
+            typingChunkSize,
+            currentMessage.response.length - typingText.length
+          );
+          const nextChunk = currentMessage.response.substring(
+            typingText.length,
+            typingText.length + nextChunkSize
+          );
+          setTypingText(prev => prev + nextChunk);
+        }, typingSpeed);
+        return () => clearTimeout(timeout);
+      } else if (currentMessage.isTyping && typingText.length >= currentMessage.response.length) {
+        // Typing is complete, update the chat history
+        const updatedChatHistory = [...chatHistory];
+        updatedChatHistory[currentTypingIndex] = {
+          ...currentMessage,
+          isTyping: false,
+        };
+        setChatHistory(updatedChatHistory);
+        setTypingText('');
+        setCurrentTypingIndex(-1);
+      }
+    }
+  }, [chatHistory, currentTypingIndex, typingText]);
+
+  const loadChatHistory = async () => {
+    if (!user) return;
+
+    try {
       const { data, error } = await supabase
         .from('chat_history')
         .select('*')
         .eq('user_id', user.id)
         .order('created_at', { ascending: true });
 
-      if (error) throw error;
+      if (error) {
+        console.error('Error loading chat history:', error);
+        return;
+      }
+
       setChatHistory(data || []);
     } catch (error) {
       console.error('Error loading chat history:', error);
@@ -129,56 +187,84 @@ export default function ChatScreen() {
   };
 
   const handleSend = async () => {
-    if (!message.trim() || isLoading) return;
-    if (!user?.id) {
-      console.error('No user ID found');
-      return;
-    }
+    if (!message.trim() || isLoading || !user) return;
 
-    const trimmedMessage = message.trim();
+    const userMessage = message.trim();
     setMessage('');
     setIsLoading(true);
 
+    // Add user message to chat history with isTyping for UI only
+    const newMessage: ChatMessage = {
+      user_id: user.id,
+      message: userMessage,
+      response: '',
+      created_at: new Date().toISOString(),
+      isTyping: true,
+    };
+
+    // Update local chat history
+    const updatedChatHistory = [...chatHistory, newMessage];
+    setChatHistory(updatedChatHistory);
+    
     try {
-      const response = await sendMessageToAI(trimmedMessage);
+      // Send message to AI
+      const aiResponse = await sendMessageToAI(userMessage);
+
+      // Set the typing animation for the AI response
+      const updatedHistory = [...updatedChatHistory];
+      updatedHistory[updatedHistory.length - 1] = {
+        ...updatedHistory[updatedHistory.length - 1],
+        response: aiResponse,
+      };
       
-      const newMessage: ChatMessage = {
+      setChatHistory(updatedHistory);
+      setTypingText('');
+      setCurrentTypingIndex(updatedHistory.length - 1);
+
+      // Create database object without isTyping field
+      const dbMessage = {
         user_id: user.id,
-        message: trimmedMessage,
-        response: response,
+        message: userMessage,
+        response: aiResponse,
         created_at: new Date().toISOString(),
       };
 
+      // Save to database without isTyping field
       const { data, error } = await supabase
         .from('chat_history')
-        .insert([newMessage])
-        .select()
-        .single();
+        .insert([dbMessage])
+        .select();
 
-      if (error) throw error;
-
-      setChatHistory(prev => [...prev, data]);
-      scrollViewRef.current?.scrollToEnd({ animated: true });
+      if (error) {
+        console.error('Error saving chat:', error);
+      } else if (data && data.length > 0) {
+        // After database save, we'll keep the UI state but update with DB data
+        // We'll do this after the typing animation is complete
+      }
     } catch (error) {
       console.error('Error sending message:', error);
+      // Handle error in UI
     } finally {
       setIsLoading(false);
     }
   };
 
   const clearChatHistory = async () => {
-    try {
-      if (!user?.id) {
-        console.error('No user ID found');
-        return;
-      }
+    if (!user) return;
 
+    try {
+      // Delete from database
       const { error } = await supabase
         .from('chat_history')
         .delete()
         .eq('user_id', user.id);
 
-      if (error) throw error;
+      if (error) {
+        console.error('Error clearing chat history:', error);
+        return;
+      }
+
+      // Clear local state
       setChatHistory([]);
     } catch (error) {
       console.error('Error clearing chat history:', error);
@@ -186,28 +272,17 @@ export default function ChatScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.safeArea}>
-      {/* Animated Background */}
-      <LinearGradient
-        colors={['#0A1128', '#1C2541']}
-        style={StyleSheet.absoluteFill}
-      />
-
-      {/* 3D Building Model */}
-      <View style={styles.buildingContainer}>
-        <Building3D />
-      </View>
-      
-      {/* Floating Icons */}
+    <SafeAreaView style={styles.safeArea} edges={['top']}>
+      {/* Floating background icons */}
       {floatingIcons.map((icon, index) => (
         <Animated.View
-          key={`float-${index}`}
+          key={index}
           style={[
             styles.floatingIcon,
             {
+              left: 20 + (index * 80),
               transform: [{ translateY: icon.translateY }],
               opacity: icon.opacity,
-              left: (width / (floatingIcons.length + 1)) * (index + 1),
             },
           ]}
         >
@@ -215,130 +290,121 @@ export default function ChatScreen() {
         </Animated.View>
       ))}
 
-      <KeyboardAvoidingView 
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        style={styles.container}
+      {/* Header */}
+      <LinearGradient
+        colors={['#1A237E', '#304FFE']}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 0 }}
+        style={styles.header}
       >
-        {/* Modern Header */}
-        <LinearGradient
-          colors={['#304FFE', '#7048E8']}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 0 }}
-          style={styles.header}
-        >
-          <View style={styles.headerContent}>
-            <View style={styles.avatarContainer}>
-              <Surface style={[styles.avatarSurface, { backgroundColor: '#7048E8' }]}>
-                <Avatar.Text 
-                  size={36} 
-                  label="SR"
-                  color="#FFFFFF"
-                />
-              </Surface>
-            </View>
-            <Text style={styles.headerTitle}>SRM AI Assistant</Text>
-          </View>
-          <TouchableOpacity onPress={clearChatHistory}>
-            <IconButton 
-              icon="delete-outline" 
-              size={24} 
-              iconColor="#FFFFFF"
-              style={styles.clearButton}
+        <View style={styles.headerContent}>
+          <Surface style={styles.avatarContainer}>
+            <Avatar.Icon 
+              size={32} 
+              icon="robot" 
+              color="#FFFFFF" 
+              style={{ backgroundColor: 'transparent' }} 
             />
-          </TouchableOpacity>
-        </LinearGradient>
+          </Surface>
+          <Text style={styles.headerTitle}>AI Assistant</Text>
+        </View>
+        <IconButton
+          icon="trash-can-outline"
+          iconColor="#FFFFFF"
+          size={24}
+          onPress={clearChatHistory}
+          style={styles.clearButton}
+        />
+      </LinearGradient>
 
+      {/* Main content with KeyboardAvoidingView */}
+      <KeyboardAvoidingView 
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        style={styles.keyboardAvoidView}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
+      >
         {/* Messages */}
         <ScrollView
           ref={scrollViewRef}
           style={styles.messagesContainer}
           contentContainerStyle={styles.messagesContent}
-          onContentSizeChange={() => scrollViewRef.current?.scrollToEnd({ animated: true })}
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
+          onContentSizeChange={scrollToBottom}
+          onLayout={scrollToBottom}
         >
-          {chatHistory.map((chat, index) => (
-            <React.Fragment key={chat.id || index}>
+          {chatHistory.map((item, index) => (
+            <View key={item.id || index} style={styles.chatBubbleContainer}>
               {/* User Message */}
-              <Animated.View
-                style={styles.chatBubbleContainer}
-              >
+              {item.message && (
                 <View style={styles.userMessageRow}>
-                  <View style={styles.avatarContainer}>
-                    <Surface style={[styles.avatarSurface, { backgroundColor: COLORS.primary }]}>
-                      <Avatar.Icon 
-                        size={36} 
-                        icon="account" 
-                        style={styles.userAvatar}
-                        color="#FFFFFF"
-                      />
-                    </Surface>
-                  </View>
                   <View style={[styles.chatBubble, styles.userBubble]}>
-                    <Text style={[styles.chatText, styles.userText]}>{chat.message}</Text>
+                    <Text style={[styles.chatText, styles.userText]}>
+                      {item.message}
+                    </Text>
                   </View>
-                </View>
-              </Animated.View>
-
-              {/* AI Response */}
-              <Animated.View
-                style={styles.chatBubbleContainer}
-              >
-                <View style={styles.aiMessageRow}>
-                  <View style={styles.avatarContainer}>
-                    <Surface style={[styles.avatarSurface, { backgroundColor: '#7048E8' }]}>
-                      <Avatar.Icon 
-                        size={36} 
-                        icon="robot" 
-                        style={styles.aiAvatar}
-                        color="#FFFFFF"
-                      />
-                    </Surface>
-                  </View>
-                  <View style={[styles.chatBubble, styles.aiBubble]}>
-                    <Text style={[styles.chatText, styles.aiText]}>{chat.response}</Text>
-                  </View>
-                </View>
-              </Animated.View>
-            </React.Fragment>
-          ))}
-          {isLoading && (
-            <Animated.View
-              style={styles.chatBubbleContainer}
-            >
-              <View style={styles.aiMessageRow}>
-                <View style={styles.avatarContainer}>
-                  <Surface style={[styles.avatarSurface, { backgroundColor: '#7048E8' }]}>
-                    <Avatar.Icon 
-                      size={36} 
-                      icon="robot" 
-                      style={styles.aiAvatar}
+                  <Surface style={[styles.avatarSurface, { marginLeft: 10 }]}>
+                    <Avatar.Icon
+                      size={36}
+                      icon="account"
                       color="#FFFFFF"
+                      style={[styles.userAvatar, { backgroundColor: '#304FFE' }]}
                     />
                   </Surface>
                 </View>
-                <View style={[styles.chatBubble, styles.aiBubble, styles.loadingBubble]}>
-                  <ActivityIndicator animating={true} color="#7048E8" />
+              )}
+
+              {/* AI Response */}
+              {(item.response || item.isTyping) && (
+                <View style={styles.aiMessageRow}>
+                  <Surface style={[styles.avatarSurface, { marginRight: 10 }]}>
+                    <Avatar.Icon
+                      size={36}
+                      icon="robot"
+                      color="#FFFFFF"
+                      style={[styles.aiAvatar, { backgroundColor: '#424242' }]}
+                    />
+                  </Surface>
+                  {item.isTyping ? (
+                    <View style={[styles.chatBubble, styles.aiBubble, styles.loadingBubble]}>
+                      {currentTypingIndex === index && typingText.length > 0 ? (
+                        <Text style={[styles.chatText, styles.aiText]}>
+                          {typingText}
+                        </Text>
+                      ) : (
+                        <TypingAnimation />
+                      )}
+                    </View>
+                  ) : (
+                    <View style={[styles.chatBubble, styles.aiBubble]}>
+                      <Text style={[styles.chatText, styles.aiText]}>
+                        {item.response}
+                      </Text>
+                    </View>
+                  )}
                 </View>
-              </View>
-            </Animated.View>
-          )}
+              )}
+            </View>
+          ))}
+          {/* Extra space at the bottom to ensure content is above the input */}
+          <View style={styles.bottomSpacer} />
         </ScrollView>
 
-        {/* Input */}
-        <LinearGradient
-          colors={['rgba(28, 37, 65, 0.8)', 'rgba(10, 17, 40, 0.9)']}
-          style={styles.inputWrapper}
-        >
+        {/* Input area */}
+        <View style={styles.inputWrapper}>
           <View style={styles.inputContainer}>
             <TextInput
               ref={inputRef}
               style={styles.input}
-              placeholder="Type your message..."
-              placeholderTextColor="rgba(255,255,255,0.5)"
+              placeholder="Type a message..."
+              placeholderTextColor="rgba(255, 255, 255, 0.5)"
               value={message}
               onChangeText={setMessage}
               multiline
-              maxLength={500}
-              onSubmitEditing={handleSend}
+              maxLength={1000}
+              blurOnSubmit={false}
+              autoCorrect={false}
+              returnKeyType="default"
             />
             <TouchableOpacity
               style={styles.sendButtonContainer}
@@ -360,7 +426,7 @@ export default function ChatScreen() {
               </LinearGradient>
             </TouchableOpacity>
           </View>
-        </LinearGradient>
+        </View>
       </KeyboardAvoidingView>
     </SafeAreaView>
   );
@@ -371,19 +437,13 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#0A1128',
   },
-  container: {
+  keyboardAvoidView: {
     flex: 1,
     backgroundColor: 'transparent',
   },
   floatingIcon: {
     position: 'absolute',
     zIndex: -1,
-  },
-  buildingContainer: {
-    position: 'absolute',
-    width: '100%',
-    height: '100%',
-    zIndex: 0,
   },
   header: {
     flexDirection: 'row',
@@ -426,11 +486,14 @@ const styles = StyleSheet.create({
   },
   messagesContent: {
     padding: 15,
-    paddingBottom: 30,
+    paddingBottom: 100, // Extra padding at bottom
     flexGrow: 1,
   },
+  bottomSpacer: {
+    height: 60, // Extra space at the bottom
+  },
   chatBubbleContainer: {
-    marginVertical: 8,
+    marginVertical: 12,
     width: '100%',
   },
   userMessageRow: {
@@ -438,20 +501,21 @@ const styles = StyleSheet.create({
     justifyContent: 'flex-end',
     alignItems: 'flex-end',
     marginLeft: 50,
-    marginBottom: 4,
+    marginBottom: 8,
   },
   aiMessageRow: {
     flexDirection: 'row',
     justifyContent: 'flex-start',
     alignItems: 'flex-end',
     marginRight: 50,
-    marginBottom: 4,
+    marginBottom: 8,
   },
   avatarSurface: {
     borderRadius: 18,
     width: 36,
     height: 36,
     elevation: 2,
+    overflow: 'hidden',
   },
   userAvatar: {
     margin: 0,
@@ -462,7 +526,7 @@ const styles = StyleSheet.create({
   chatBubble: {
     padding: 12,
     borderRadius: 18,
-    maxWidth: '85%',
+    maxWidth: '80%',
     elevation: 2,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 1 },
@@ -473,11 +537,13 @@ const styles = StyleSheet.create({
     backgroundColor: '#304FFE',
     borderTopRightRadius: 4,
     marginLeft: 8,
+    marginRight: 0,
   },
   aiBubble: {
     backgroundColor: 'rgba(40, 44, 52, 0.9)',
     borderTopLeftRadius: 4,
     marginRight: 8,
+    marginLeft: 0,
   },
   chatText: {
     fontSize: 16,
@@ -496,9 +562,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   inputWrapper: {
+    backgroundColor: 'rgba(10, 17, 40, 0.95)',
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
-    paddingBottom: Platform.OS === 'ios' ? 20 : 10,
+    paddingBottom: Platform.OS === 'ios' ? 30 : 15,
     paddingTop: 15,
     elevation: 8,
     shadowColor: '#000',
@@ -508,7 +575,7 @@ const styles = StyleSheet.create({
   },
   inputContainer: {
     flexDirection: 'row',
-    alignItems: 'flex-end',
+    alignItems: 'center',
     paddingHorizontal: 15,
   },
   input: {
@@ -518,13 +585,13 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(255, 255, 255, 0.1)',
     borderRadius: 25,
     paddingHorizontal: 20,
-    paddingTop: 12,
-    paddingBottom: 12,
+    paddingVertical: 12,
     marginRight: 10,
     fontSize: 16,
     color: '#FFFFFF',
     borderWidth: 1,
     borderColor: 'rgba(255, 255, 255, 0.2)',
+    textAlignVertical: 'center',
   },
   sendButtonContainer: {
     width: 50,

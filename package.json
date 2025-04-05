@@ -6,7 +6,11 @@
     "start": "expo start",
     "android": "expo start --android",
     "ios": "expo start --ios",
-    "web": "expo start --web"
+    "web": "expo start --web",
+    "web-build": "expo export:web",
+    "web-serve": "npx serve web-build",
+    "tunnel": "node -r ./fix-tunnel.js ./node_modules/.bin/expo start --tunnel --no-dev --minify",
+    "tunnel-dev": "node -r ./fix-tunnel.js ./node_modules/.bin/expo start --tunnel"
   },
   "dependencies": {
     "@google/generative-ai": "^0.24.0",
@@ -15,13 +19,13 @@
     "@react-three/fiber": "^9.1.0",
     "@supabase/supabase-js": "^2.49.1",
     "dotenv": "^16.4.7",
-    "expo": "^52.0.16",
+    "expo": "~52.0.41",
     "expo-calendar": "^14.0.6",
-    "expo-constants": "~17.0.2",
+    "expo-constants": "~17.0.8",
     "expo-gl": "~15.0.4",
     "expo-linear-gradient": "^14.0.2",
     "expo-linking": "~7.0.2",
-    "expo-router": "~4.0.2",
+    "expo-router": "~4.0.19",
     "expo-splash-screen": "~0.29.7",
     "expo-status-bar": "~2.0.0",
     "expo-three": "^8.0.0",
@@ -33,7 +37,7 @@
     "react-native-reanimated": "~3.16.1",
     "react-native-safe-area-context": "^4.12.0",
     "react-native-screens": "~4.4.0",
-    "react-native-svg": "^15.11.2",
+    "react-native-svg": "^15.8.0",
     "react-native-url-polyfill": "^2.0.0",
     "react-native-vector-icons": "^10.2.0",
     "react-native-web": "~0.19.6",
@@ -45,6 +49,7 @@
     "@types/react": "~18.3.12",
     "@types/three": "^0.174.0",
     "babel-plugin-module-resolver": "^5.0.2",
+    "kill-port": "^2.0.1",
     "typescript": "^5.3.3"
   },
   "private": true

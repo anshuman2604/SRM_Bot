@@ -6,6 +6,42 @@
     ],
     "name": "college-ai-assistant",
     "slug": "college-ai-assistant",
-    "newArchEnabled": true
+    "newArchEnabled": true,
+    "web": {
+      "bundler": "metro",
+      "favicon": "./assets/favicon.png",
+      "name": "College AI Assistant",
+      "shortName": "AI Assistant",
+      "backgroundColor": "#0A1128",
+      "themeColor": "#304FFE"
+    },
+    "extra": {
+      "eas": {
+        "projectId": "your-project-id"
+      },
+      "nodeOptions": "--max-old-space-size=4096",
+      "uvThreadpoolSize": 16
+    },
+    "owner": "your-expo-username",
+    "android": {
+      "package": "com.yourname.collegeaiassistant"
+    },
+    "ios": {
+      "bundleIdentifier": "com.yourname.collegeaiassistant"
+    },
+    "packagerOpts": {
+      "sourceExts": [
+        "js",
+        "jsx",
+        "ts",
+        "tsx",
+        "json"
+      ],
+      "nonPersistent": true
+    },
+    "developmentClient": false,
+    "runtimeVersion": {
+      "policy": "appVersion"
+    }
   }
 }

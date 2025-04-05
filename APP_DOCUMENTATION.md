@@ -186,3 +186,37 @@ WHERE email = 'user@example.com';
 - Push notifications for upcoming events
 - Offline mode for resource access
 - Analytics dashboard for usage statistics
+
+## Performance Optimizations
+
+### Animation Optimizations
+The application uses several optimized animation components to ensure smooth performance across different devices:
+
+#### 1. AnimatedEye Component
+- Simplified animation logic to prevent transform errors
+- Uses static transforms instead of animated scale values
+- Maintains visual appeal while ensuring stability
+
+#### 2. TypingAnimation Component
+- Uses opacity animations instead of scale transforms
+- Implements staggered animations for typing indicator dots
+- Prevents common React Native transform errors
+
+#### 3. Building3D Component
+- Optimized 3D rendering with static transform values
+- Reduced animation complexity to improve performance
+- Compatible with Expo's implementation of React Native
+
+#### 4. FuturisticDots Component
+- Simplified animation patterns for background elements
+- Removed complex transform chains to prevent errors
+- Maintains visual appeal with optimized rendering
+
+### Common Animation Issues
+When developing or modifying animations, be aware of these common pitfalls:
+
+1. **Transform Object Issues**: Always use primitive values (numbers) for transform properties, not Animated.Value objects directly
+2. **Animation Timing**: Properly sequence animations to prevent timing-related errors
+3. **Scale Transforms**: Use interpolated values for scale transforms to ensure they're always numeric
+
+For detailed troubleshooting guidance, refer to the [TROUBLESHOOTING.md](./TROUBLESHOOTING.md) file.

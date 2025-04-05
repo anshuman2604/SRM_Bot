@@ -23,6 +23,8 @@ The app is configured to use Google's Gemini AI model. Follow these steps to set
 2. Create a `.env` file in the root directory with the following content:
    ```
    EXPO_PUBLIC_GEMINI_API_KEY=your_gemini_api_key_here
+   EXPO_PUBLIC_SUPABASE_URL=your_supabase_url_here
+   EXPO_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key_here
    ```
 
 ### API Configuration
@@ -33,10 +35,15 @@ The app uses the following API endpoints:
 
 ## Running the App
 
+### Local Development (Same Network)
+
+If your phone and computer are on the same network:
+
 1. Install dependencies:
    ```
-   npm install
+   npm install --force
    ```
+   Note: The `--force` flag is necessary due to some dependency conflicts with React and Three.js packages.
 
 2. Start the development server:
    ```
@@ -44,6 +51,38 @@ The app uses the following API endpoints:
    ```
 
 3. Use the Expo Go app on your mobile device to scan the QR code and run the app
+
+### Cross-Network Development
+
+If your phone and computer are on different networks:
+
+1. Start the app with tunneling:
+   ```
+   npx expo start --tunnel
+   ```
+
+2. This will create a tunnel that allows your phone to connect from any network
+
+3. Scan the QR code with your phone's camera or the Expo Go app
+
+### Troubleshooting Connection Issues
+
+If you experience timeout errors when connecting:
+
+1. For same-network connections:
+   - Make sure your phone and computer are on the same WiFi network
+   - Try temporarily disabling your firewall
+   - Use the `--lan` flag: `npx expo start --lan`
+
+2. For different-network connections:
+   - Use the tunneling feature: `npx expo start --tunnel`
+   - Ensure you have a stable internet connection
+   - If the tunnel setup fails, try installing the required dependencies:
+     ```
+     npm install @expo/ngrok --save-dev
+     ```
+
+For detailed troubleshooting guidance, especially for animation and transform errors, see [TROUBLESHOOTING.md](./TROUBLESHOOTING.md).
 
 ## Admin Access
 

@@ -102,11 +102,6 @@ export default function Building3D() {
     outputRange: [0, 5],
   });
 
-  const scale = elevateAnim.interpolate({
-    inputRange: [0, 1],
-    outputRange: [0.98, 1],
-  });
-
   return (
     <View style={styles.container}>
       <Animated.View
@@ -115,7 +110,6 @@ export default function Building3D() {
           {
             transform: [
               { perspective: 1200 },
-              { scale },
               { rotateX: spinX },
               { rotateY: spinY },
               { translateY: elevation },
